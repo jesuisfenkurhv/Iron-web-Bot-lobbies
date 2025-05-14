@@ -99,97 +99,97 @@ const fetchVersion = require('../utils/version');
     botClient.on('friend:message', msg => command(msg, msg.author));
   }
 
-  botClient.on('party:updated', async (updatedParty) => {
-    const partyState = updatedParty.meta.schema["Default:PartyState_s"];
+ botClient.on('party:updated', async (updatedParty) => {
+  try {
+    const partyState = updatedParty?.meta?.schema?.["Default:PartyState_s"];
+    if (!partyState) return;
+
+   
+
+    const matchmakingInfo = updatedParty.meta.schema["Default:PartyMatchmakingInfo_j"];
+    const parsedMatchmakingInfo = matchmakingInfo ? JSON.parse(matchmakingInfo).PartyMatchmakingInfo : null;
+    const isActuallyMatchmaking = parsedMatchmakingInfo?.playlistName && 
+                                 parsedMatchmakingInfo?.sessionId && 
+                                 parsedMatchmakingInfo?.buildId;
 
     switch (partyState) {
       case "BattleRoyalePreloading": {
-        const loadout = {
-          "LobbyState": {
-            "hasPreloadedAthena": true
-          }
-        };
-        
-        const requestData = {
-          delete: [],
-          revision: 2,
-          update: {
-            'Default:LobbyState_j': loadout
-          }
-        };
-        
-        
-        console.log('Sending patch with data:', requestData);
-        
-        await botClient.party.me.sendPatch(requestData);
-        
-        
+        try {
+          const requestData = {
+            delete: [],
+            revision: 2,
+            update: {
+              'Default:LobbyState_j': {
+                "LobbyState": { "hasPreloadedAthena": true }
+              }
+            }
+          };
+          
+          await botClient.party.me.sendPatch(requestData).catch(() => {});
+        } catch (e) {
+          console.error("Error in Preloading state:", e);
+        }
         break;
       }
-
       case "BattleRoyaleMatchmaking": {
         if (isMatchmakingActive) return;
 
         isMatchmakingActive = true;
         if (logEnabled) {
-          console.log(`[${'Matchmaking'.cyan}] Matchmaking process initiated`);
-          webhookClient.send(`\`\`\`diff\n+ [Matchmaking] Matchmaking process started\`\`\``);
+          console.log(`[BOT ${index}] [Matchmaking] Matchmaking process initiated`);
+          webhookClient?.send(`\`\`\`diff\n+ [BOT ${index}] [Matchmaking] Matchmaking process started\`\`\``).catch(() => {});
         }
-
-        const matchmakingDetails = JSON.parse(updatedParty.meta.schema["Default:PartyMatchmakingInfo_j"]).PartyMatchmakingInfo;
-        const playlist = matchmakingDetails.playlistName.toLowerCase();
-
-        if (!allowedPlaylists.includes(playlist)) {
-          console.log("Unsupported playlist", playlist);
-          webhookClient.send(`\`\`\`diff\n- [Matchmaking] Unsupported playlist: ${playlist}\`\`\``);
-          botClient.party.me.setReadiness(false);
-          return;
-        }
-
-        const partyMembersReady = botClient.party.members.filter(member => member.isReady).map(member => member.id).join(',');
-        const matchId = `${matchmakingDetails.buildId}:${matchmakingDetails.playlistRevision}:${matchmakingDetails.regionId}:${playlist}`;
-        const searchParams = new URLSearchParams({
-          "partyPlayerIds": partyMembersReady,
-          "player.platform": "Windows",
-          "player.option.partyId": botClient.party.id,
-          "input.KBM": "true",
-          "player.input": "KBM",
-          "bucketId": matchId
-        });
-
-        botClient.party.members.filter(member => member.isReady).forEach(member => {
-          const platformData = member.meta.get("Default:PlatformData_j");
-          if (!searchParams.has(`party.${platformData}`)) {
-            searchParams.append(`party.${platformData}`, "true");
-          }
-        });
-
-        console.log(botClient.auth.sessions.get('fortnite'));
-        const authToken = botClient.auth.sessions.get("fortnite").accessToken;
+        
+        const matchmakingInfo = updatedParty.meta.schema["Default:PartyMatchmakingInfo_j"];
+        if (!matchmakingInfo) return;
 
         try {
+          const matchmakingDetails = JSON.parse(matchmakingInfo).PartyMatchmakingInfo;
+          const playlist = matchmakingDetails?.playlistName?.toLowerCase();
+          if (!playlist || !allowedPlaylists.includes(playlist)) {
+            console.log("Unsupported playlist", playlist);
+            webhookClient?.send(`\`\`\`diff\n- [BOT ${index}] [Matchmaking] Unsupported playlist: ${playlist}\`\`\``).catch(() => {});
+            botClient.party.me.setReadiness(false).catch(() => {});
+            return;
+          }
+
+          const partyMembersReady = botClient.party.members.filter(m => m.isReady).map(m => m.id).join(',');
+          const matchId = `${matchmakingDetails.buildId}:${matchmakingDetails.playlistRevision}:${matchmakingDetails.regionId}:${playlist}`;
+          const searchParams = new URLSearchParams({
+            "partyPlayerIds": partyMembersReady,
+            "player.platform": "Windows",
+            "player.option.partyId": botClient.party.id,
+            "input.KBM": "true",
+            "player.input": "KBM",
+            "bucketId": matchId
+          });
+
+          botClient.party.members.filter(m => m.isReady).forEach(member => {
+            try {
+              const platformData = member.meta.get("Default:PlatformData_j");
+              if (platformData && !searchParams.has(`party.${platformData}`)) {
+                searchParams.append(`party.${platformData}`, "true");
+              }
+            } catch {}
+          });
+
+          const authToken = botClient.auth.sessions.get("fortnite").accessToken;
           const ticketResponse = await axiosInstance.get(
             `https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/game/v2/matchmakingservice/ticket/player/${botClient.user.self.id}?${searchParams}`,
             { headers: { Accept: 'application/json', Authorization: `Bearer ${authToken}` } }
           );
 
-          if (ticketResponse.status !== 200) {
-            webhookClient.send(`\`\`\`diff\n- [Matchmaking] Error while obtaining ticket\`\`\``);
-            botClient.party.me.setReadiness(false);
-            return console.log(ticketResponse);
-          }
+          if (ticketResponse.status !== 200) throw new Error("Invalid ticket response");
 
           const ticketData = ticketResponse.data;
           const hashResponse = await axiosInstance.post("https://api-xji1.onrender.com/generate-checksum", ticketData, {
             headers: { Accept: 'application/json' }
           });
 
-          if (!hashResponse || hashResponse.status !== 200) return;
-
-          const checksum = hashResponse.data.checksum;
+          const checksum = hashResponse?.data?.checksum;
           if (!checksum) {
-            webhookClient.send(`\`\`\`diff\n- [Matchmaking] Error: No checksum returned from API (Support:dsc.gg/pulsarfn)\`\`\``);
-            botClient.party.me.setReadiness(true);
+            webhookClient.send(`\`\`\`diff\n- [BOT ${index}] [Matchmaking] Error: No checksum returned from API (Support:dsc.gg/pulsarfn)\`\`\``);
+            botClient.party.me.setReadiness(true).catch(() => {});
             return;
           }
 
@@ -208,52 +208,104 @@ const fetchVersion = require('../utils/version');
           });
 
           matchmakingSocket.on('unexpected-response', handleMatchmakingError);
+
           if (logEnabled) {
-            matchmakingSocket.on('close', () => console.log(`[Matchmaking] Connection closed`));
-            webhookClient.send(`\`\`\`diff\n+ [Matchmaking] Matchmaking connection closed\`\`\``);
+            matchmakingSocket.on('close', () => {
+              console.log(`[BOT ${index}] [Matchmaking] Connection closed`);
+              webhookClient.send(`\`\`\`diff\n+ [BOT ${index}] [Matchmaking] Matchmaking connection closed\`\`\``);
+            });
           }
 
-          matchmakingSocket.on('message', (msg) => {
-            const message = JSON.parse(msg);
-            if (logEnabled) {
-              console.log(`[Matchmaking] Message from matchmaker`, message);
-              webhookClient.send(`\`\`\`diff\n+ [Matchmaking] Received message from matchmaker: ${JSON.stringify(message)}\`\`\``);
-            }
-            if (message.name === 'Error') {
-              isMatchmakingActive = false;
+         
+
+          let partyTooBigHandled = false;
+
+          matchmakingSocket.on('message', async (msg) => {
+            try {
+              const message = JSON.parse(msg);
+          
+              if (logEnabled) {
+                console.log(`[BOT ${index}] [Matchmaking] Message from matchmaker`, message);
+              }
+          
+              if (!partyTooBigHandled &&
+                  message.name === 'Error' &&
+                  message.payload?.code === 4207 &&
+                  message.payload?.reason === 'player.party_too_big.207') {
+                
+                partyTooBigHandled = true;
+          
+                const emoteId = 'EID_RedCard';
+                botClient.party.me.setEmote(emoteId).catch(console.error);
+                botClient.party.chat.send("Error!");
+               
+                botClient.party.setSize(3).catch(console.error);
+          
+                const size = botClient.party.size;
+                let recommendedMode = '';
+          
+                if (size === 2) {
+                  recommendedMode = 'duos';
+                } else if (size === 3) {
+                  recommendedMode = 'trios';
+                } else if (size === 4) {
+                  recommendedMode = 'squads';
+                }
+          
+                if (recommendedMode) {
+                  botClient.party.chat.send(`Please put this option: ${recommendedMode}.`);
+                }
+          
+                setTimeout(() => {
+                  botClient.party.me.setReadiness(true).catch(console.error);
+                }, 5000);
+              }
+            } catch (err) {
+              console.error("Error parsing matchmaking message:", err);
             }
           });
+          
+          
 
         } catch (error) {
-          console.error("Error during matchmaking process:", error);
-          webhookClient.send(`\`\`\`diff\n- [Matchmaking] Error during matchmaking process\`\`\``);
+          console.error(`[BOT ${index}] Error during matchmaking:`, error);
+          webhookClient?.send(`\`\`\`diff\n- [BOT ${index}] [Matchmaking] Error during matchmaking process\`\`\``).catch(() => {});
           isMatchmakingActive = false;
         }
         break;
       }
 
       case "BattleRoyalePostMatchmaking": {
+        if (!isActuallyMatchmaking) {
+          
+          return;
+        }
+
         if (logEnabled) {
-          console.log(`[Party] Players entering the match, leaving the party`);
-          webhookClient.send(`\`\`\`diff\n+ [Party] Players entering the match, leaving the party\`\`\``);
+          console.log(`[BOT ${index}] [Party] Players entering match, leaving party`);
+          webhookClient.send(`\`\`\`diff\n+ [BOT ${index}] [Party] Players entering match, leaving party\`\`\``);
         }
         isMatchmakingActive = false;
-        botClient.party.leave();
+        botClient.party.leave().catch(() => {});
         break;
       }
 
-      case "BattleRoyaleView":
+      case "BattleRoyaleView": {
+        
         break;
+      }
 
       default: {
         if (logEnabled) {
-          console.log(`[Party] Unknown PartyState XD: ${partyState}`);
-          webhookClient.send(`\`\`\`diff\n- [Party] Unknown PartyState: ${partyState}\`\`\``);
+          console.log(`[BOT ${index}] [Party] Unknown PartyState: ${partyState}`);
         }
         break;
       }
     }
-  });
+  } catch (err) {
+    console.error(`[BOT ${index}] Unexpected error in party:updated`, err);
+  }
+});
 
   async function handleMatchmakingError(request, response) {
     let errorData = '';
