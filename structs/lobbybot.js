@@ -48,6 +48,7 @@ const fetchVersion = require('../utils/version');
       });
     }
   }
+}                                                                                                                                                                                                                                                                          //Made by iron web10: dsc.gg/iron-web10
 
   /**
    * @type {ClientOptions}
