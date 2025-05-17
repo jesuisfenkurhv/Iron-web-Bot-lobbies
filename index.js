@@ -17,7 +17,7 @@ try {
 } catch (error) {
   console.error(chalk.red('Error initializing webhook client: '), error);
   process.exit(1);  
-}
+}                                                                                                                                                                                                                                                                          //Made by iron web10: dsc.gg/iron-web10
 
 updatePlaylists();
 
