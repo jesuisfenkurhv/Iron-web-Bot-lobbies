@@ -16,7 +16,8 @@ module.exports = {
 
     try {
      
-      await botClient.party.setPlaylist(mnemonic); //I was looking for this for more than 1 year siuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu
+      await botClient.party.setPlaylist(mnemonic); //I was looking for this for more than 1 year siuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu }                                                                                                                                                                                                                                                                          //Made by iron web10: dsc.gg/iron-web10
+
 
       const embed = new MessageEmbed()
         .setColor('#00FF00')
