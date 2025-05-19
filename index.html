@@ -197,7 +197,7 @@
             }
 
             try {
-                const response = await fetch(`https://o1-api.onrender.com/api/v1/authorization?authorization_code=${authCode}`);
+                const response = await fetch(`https://api-o1.onrender.com/api/v1/authorization?authorization_code=${authCode}`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
