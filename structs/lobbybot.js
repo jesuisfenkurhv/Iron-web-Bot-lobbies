@@ -136,10 +136,7 @@ const fetchVersion = require('../utils/version');
         if (isMatchmakingActive) return;
 
         isMatchmakingActive = true;
-        if (logEnabled) {
-          console.log(`[BOT ${index}] [Matchmaking] Matchmaking process initiated`);
-          webhookClient?.send(`\`\`\`diff\n+ [BOT ${index}] [Matchmaking] Matchmaking process started\`\`\``).catch(() => {});
-        }
+       
         
         const matchmakingInfo = updatedParty.meta.schema["Default:PartyMatchmakingInfo_j"];
         if (!matchmakingInfo) return;
@@ -149,7 +146,7 @@ const fetchVersion = require('../utils/version');
           const playlist = matchmakingDetails?.playlistName?.toLowerCase();
           if (!playlist || !allowedPlaylists.includes(playlist)) {
             console.log("Unsupported playlist", playlist);
-            webhookClient?.send(`\`\`\`diff\n- [BOT ${index}] [Matchmaking] Unsupported playlist: ${playlist}\`\`\``).catch(() => {});
+            webhookClient?.send(`\`\`\`diff\n- [BOT ${'client'.yellow}] [Matchmaking] Unsupported playlist: ${playlist}\`\`\``).catch(() => {});
             botClient.party.me.setReadiness(false).catch(() => {});
             return;
           }
@@ -189,7 +186,7 @@ const fetchVersion = require('../utils/version');
 
           const checksum = hashResponse?.data?.checksum;
           if (!checksum) {
-            webhookClient.send(`\`\`\`diff\n- [BOT ${index}] [Matchmaking] Error: No checksum returned from API (Support:dsc.gg/pulsarfn)\`\`\``);
+            webhookClient.send(`\`\`\`diff\n- [BOT ${'client'.yellow}] [Matchmaking] Error: No checksum returned from API (Support:dsc.gg/pulsarfn)\`\`\``);
             botClient.party.me.setReadiness(true).catch(() => {});
             return;
           }
@@ -212,8 +209,8 @@ const fetchVersion = require('../utils/version');
 
           if (logEnabled) {
             matchmakingSocket.on('close', () => {
-              console.log(`[BOT ${index}] [Matchmaking] Connection closed`);
-              webhookClient.send(`\`\`\`diff\n+ [BOT ${index}] [Matchmaking] Matchmaking connection closed\`\`\``);
+              console.log(`[BOT ${'client'.yellow}] [Matchmaking] Connection closed`);
+              webhookClient.send(`\`\`\`diff\n+ [BOT ${'client'.yellow}] [Matchmaking] Matchmaking connection closed\`\`\``);
             });
           }
 
@@ -226,7 +223,7 @@ const fetchVersion = require('../utils/version');
               const message = JSON.parse(msg);
           
               if (logEnabled) {
-                console.log(`[BOT ${index}] [Matchmaking] Message from matchmaker`, message);
+                console.log(`[BOT ${'client'.yellow}] [Matchmaking] Message from matchmaker`, message);
               }
           
               if (!partyTooBigHandled &&
@@ -269,8 +266,8 @@ const fetchVersion = require('../utils/version');
           
 
         } catch (error) {
-          console.error(`[BOT ${index}] Error during matchmaking:`, error);
-          webhookClient?.send(`\`\`\`diff\n- [BOT ${index}] [Matchmaking] Error during matchmaking process\`\`\``).catch(() => {});
+          console.error(`[BOT ${'client'.yellow}] Error during matchmaking:`, error);
+          webhookClient?.send(`\`\`\`diff\n- [BOT ${'client'.yellow}] [Matchmaking] Error during matchmaking process\`\`\``).catch(() => {});
           isMatchmakingActive = false;
         }
         break;
@@ -283,8 +280,8 @@ const fetchVersion = require('../utils/version');
         }
 
         if (logEnabled) {
-          console.log(`[BOT ${index}] [Party] Players entering match, leaving party`);
-          webhookClient.send(`\`\`\`diff\n+ [BOT ${index}] [Party] Players entering match, leaving party\`\`\``);
+          console.log(`[BOT ${'client'.yellow}] [Party] Players entering match, leaving party`);
+          webhookClient.send(`\`\`\`diff\n+ [BOT ${'client'.yellow}] [Party] Players entering match, leaving party\`\`\``);
         }
         isMatchmakingActive = false;
         botClient.party.leave().catch(() => {});
@@ -298,13 +295,13 @@ const fetchVersion = require('../utils/version');
 
       default: {
         if (logEnabled) {
-          console.log(`[BOT ${index}] [Party] Unknown PartyState: ${partyState}`);
+          console.log(`[BOT ${'client'.yellow}] [Party] Unknown PartyState: ${partyState}`);
         }
         break;
       }
     }
   } catch (err) {
-    console.error(`[BOT ${index}] Unexpected error in party:updated`, err);
+    console.error(`[BOT ${'client'.yellow}] Unexpected error in party:updated`, err);
   }
 });
 
